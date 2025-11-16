@@ -13,12 +13,12 @@ st.set_page_config(
 # 2. TẢI MÔ HÌNH ĐÃ LƯU
 @st.cache_resource
 def load_model():
-    return joblib.load('mo_hinh_du_doan_hoai_tu.pkl')
+    return joblib.load('mo_hinh_xgboost_du_doan_hoai_tu.pkl')
 
 try:
     model = load_model()
 except:
-    st.error("⚠️ Không tìm thấy file mô hình. Hãy đảm bảo bạn đã upload file .pkl cùng thư mục!")
+    st.error("⚠️ Không tìm thấy file mô hình.")
     st.stop()
 
 # 3. GIAO DIỆN NHẬP LIỆU
