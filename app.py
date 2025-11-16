@@ -2,9 +2,6 @@ import streamlit as st
 import pandas as pd
 import joblib
 import numpy as np
-from flask import Flask, request, jsonify
-from flask import Flask, request, jsonify, render_template_string
-from flask import Flask, request, jsonify, render_template_string
 import pandas as pd
 import pickle
 import os
