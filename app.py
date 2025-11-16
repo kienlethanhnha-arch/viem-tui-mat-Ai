@@ -7,7 +7,6 @@ import pickle
 import os
 
 MODEL_PATH = '/mnt/data/mo_hinh_du_doan_hoai_tu.pkl'
-app = Flask(__name__)
 
 FEATURE_ORDER = [
     'wbc','crp','wall_thickened_1.0','wall_thickened_0.0','age','nlr',
