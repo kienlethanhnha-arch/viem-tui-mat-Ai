@@ -16,7 +16,7 @@ def load_model():
     return joblib.load('mo_hinh_xgboost_du_doan_hoai_tu.pkl')
 
 try:
-    model = load_model()
+    model = load_model(mo_hinh_xgboost_du_doan_hoai_tu.pkl)
 except:
     st.error("⚠️ Không tìm thấy file mô hình.")
     st.stop()
