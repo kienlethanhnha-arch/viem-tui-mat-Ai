@@ -6,9 +6,10 @@ from flask import Flask, request, jsonify
 # Load model
 model = None
 if os.path.exists(MODEL_PATH):
-with open(MODEL_PATH, 'rb') as f:
-model = pickle.load(f)
+    with open(MODEL_PATH, 'rb') as f:
+        model = pickle.load(f)
 else:
+    print("⚠️ MODEL_PATH không tồn tại:", MODEL_PATH)
 print(f"WARNING: model file not found at {MODEL_PATH}")
 
 
