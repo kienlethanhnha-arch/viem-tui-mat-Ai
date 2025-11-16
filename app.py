@@ -114,7 +114,7 @@ st.write(input_df)
 #     st.subheader('Prediction')
 #     st.write(f'Prediction: {prediction[0]}')
 #     st.write(f'Prediction Probability (Necrosis): {prediction_proba[0]:.4f}')
- Make prediction
+# Make prediction
 if st.sidebar.button('Predict'):
     # The model expects a DataFrame with columns matching the training features.
     # The preprocessor inside the pipeline will handle scaling and one-hot encoding.
