@@ -3,6 +3,19 @@ import pandas as pd
 import joblib
 import numpy as np
 from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template_string
+import pandas as pd
+import pickle
+import os
+
+MODEL_PATH = '/mnt/data/mo_hinh_du_doan_hoai_tu.pkl'
+app = Flask(__name__)
+
+FEATURE_ORDER = [
+    'wbc','crp','wall_thickened_1.0','wall_thickened_0.0','age','nlr',
+    'alt','systolic_bp','bilirubin_total','neutrophil_pct'
+]
+
 # Load model
 model = None
 if os.path.exists(MODEL_PATH):
@@ -10,14 +23,11 @@ if os.path.exists(MODEL_PATH):
         model = pickle.load(f)
 else:
     print("⚠️ MODEL_PATH không tồn tại:", MODEL_PATH)
-print(f"WARNING: model file not found at {MODEL_PATH}")
-
-
-
 
 @app.route('/')
 def index():
-return "Model prediction API is running. POST JSON to /predict"
+    return "Model prediction API is running. POST JSON to /predict"
+
 
 
 
