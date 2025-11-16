@@ -101,4 +101,4 @@ if st.button("🔍 PHÂN TÍCH NGAY", use_container_width=True):
 
 # Disclaimer
 st.markdown("-----------")
-st.caption("Lưu ý: Kết quả chỉ mang tính chất tham khảo hỗ trợ nghiên cứu. Quyết định cuối cùng thuộc về bác sĩ lâm s
+st.caption("Lưu ý: Kết quả chỉ mang tính chất tham khảo hỗ trợ nghiên cứu. Quyết định cuối cùng thuộc về bác sĩ lâm sàng")
