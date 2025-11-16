@@ -1,17 +1,16 @@
 import streamlit as st
 
 st.title("Gallbladder Necrosis Prediction App")
-
-# Placeholder for the rest of the app code
 import joblib
 import pandas as pd
 
 # Load the trained model
 try:
-    model = joblib.load('mo_hinh_du_doan_hoai_tu.pkl')
-    st.success("Model 'mo_hinh_du_doan_hoai_tu.pkl' loaded successfully!")
+    # Correcting the model file name to mo_hinh_xgboost_du_doan_hoai_tu.pkl
+    model = joblib.load('mo_hinh_xgboost_du_doan_hoai_tu.pkl')
+    st.success("Model 'mo_hinh_xgboost_du_doan_hoai_tu.pkl' loaded successfully!")
 except FileNotFoundError:
-    st.error("Error: Model file 'mo_hinh_du_doan_hoai_tu.pkl' not found. Please ensure it's in the same directory.")
+    st.error("Error: Model file 'mo_hinh_xgboost_du_doan_hoai_tu.pkl' not found. Please ensure it's in the same directory.")
     st.stop()
 
 # Define feature lists based on the original training script
@@ -26,7 +25,7 @@ categorical_features = [
     'fever', 'murphy_clinical',
     'wall_thickened', 'pericholecystic_fluid', 'impacted_stone',
     'gallbladder_distended', 'gas_in_wall', 'murphy_ultrasound',
-    'ct_wall_thickened', 'ct_pericholecystic_fluid' 
+    'ct_wall_thickened', 'ct_pericholecystic_fluid'
 ]
 
 st.sidebar.header('Patient Input Features')
@@ -40,7 +39,7 @@ for feature in numeric_features:
     default_value = 0.0 # Placeholder, more robust would be to use mean/median from training data
     min_val = 0.0
     max_val = 500.0 # Adjust max based on feature scale
-    
+
     if feature == 'age':
         default_value = 50.0
         max_val = 120.0
@@ -88,10 +87,10 @@ for feature in numeric_features:
         max_val = 20.0
 
     user_input[feature] = st.sidebar.number_input(
-        f'\u2022 {feature.replace("_", " ").title()}', 
-        min_value=min_val, 
-        max_value=max_val, 
-        value=default_value, 
+        f'\u2022 {feature.replace("_", " ").title()}',
+        min_value=min_val,
+        max_value=max_val,
+        value=default_value,
         step=0.1
     )
 
@@ -115,3 +114,22 @@ st.write(input_df)
 #     st.subheader('Prediction')
 #     st.write(f'Prediction: {prediction[0]}')
 #     st.write(f'Prediction Probability (Necrosis): {prediction_proba[0]:.4f}')
+# Make prediction
+if st.sidebar.button('Predict'):
+    # The model expects a DataFrame with columns matching the training features.
+    # The preprocessor inside the pipeline will handle scaling and one-hot encoding.
+    prediction = model.predict(input_df)
+    prediction_proba = model.predict_proba(input_df)[:, 1]
+
+    st.subheader('Prediction Result')
+    if prediction[0] == 1:
+        st.write("**Prediction: Necrosis Detected (1)**")
+    else:
+        st.write("**Prediction: No Necrosis (0)**")
+    st.write(f'Prediction Probability of Necrosis: {prediction_proba[0]:.4f}')
+
+    st.subheader('Explanation of Prediction Probability')
+    if prediction_proba[0] > 0.5:
+        st.info(f"The model predicts a higher chance of necrosis (probability: {prediction_proba[0]:.2%}).")
+    else:
+        st.info(f"The model predicts a lower chance of necrosis (probability: {prediction_proba[0]:.2%}).")
