@@ -24,73 +24,63 @@ if os.path.exists(MODEL_PATH):
 else:
     print("⚠️ MODEL_PATH không tồn tại:", MODEL_PATH)
 
+# HTML form
+HTML_PAGE = """
+<!doctype html>
+<html lang='vi'>
+<head>
+<meta charset='utf-8'/>
+<title>Dự đoán hoại tử túi mật</title>
+<style>
+body{font-family:Arial;max-width:600px;margin:40px auto}
+input{width:100%;padding:8px;margin-top:6px}
+button{padding:10px;margin-top:15px}
+#out{margin-top:20px;padding:10px;background:#eee;display:none}
+</style>
+</head>
+<body>
+<h2>Tính tỉ lệ hoại tử túi mật</h2>
+<form id='frm'>
+{% for f in fields %}
+<label>{{loop.index}}. {{f}}</label>
+<input name='{{f}}' required type='number' step='any'/>
+{% endfor %}
+<button type='submit'>Predict</button>
+</form>
+<div id='out'></div>
+<script>
+const frm=document.getElementById('frm');
+const out=document.getElementById('out');
+frm.addEventListener('submit',async e=>{
+ e.preventDefault(); out.style.display='block'; out.innerHTML='Đang tính...';
+ let data={};
+ [...new FormData(frm).entries()].forEach(([k,v])=>data[k]=Number(v));
+ let r=await fetch('/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+ r=await r.json();
+ if(r.error){out.innerHTML='Lỗi: '+r.error;return;}
+ out.innerHTML=`<b>Kết quả:</b> ${r.probability_percent.toFixed(2)}%`;
+});
+</script>
+</body>
+</html>
+"""
+
 @app.route('/')
 def index():
-    return "Model prediction API is running. POST JSON to /predict"
-
-
-
-
+    return render_template_string(HTML_PAGE, fields=FEATURE_ORDER)
 
 @app.route('/predict', methods=['POST'])
 def predict():
-if model is None:
-return jsonify({'error': 'Model not loaded on server'}), 500
+    if model is None:
+        return jsonify({'error': 'Model không tải được'}), 500
 
+    data = request.get_json()
+    try:
+        row = [data[f] for f in FEATURE_ORDER]
+    except:
+        return jsonify({'error': 'Thiếu hoặc sai tên tham số'}), 400
 
-data = request.get_json()
-if data is None:
-return jsonify({'error': 'Request body must be JSON'}), 400
+    X = pd.DataFrame([row], columns=FEATURE_ORDER).apply(pd.to_numeric, errors='coerce')
 
-
-# Accept either dict of named features or an array in the correct order
-# If user sends names, we will extract values according to FEATURE_ORDER.
-if isinstance(data, dict):
-try:
-row = [data[name] for name in FEATURE_ORDER]
-except KeyError as e:
-return jsonify({'error': f'Missing feature: {str(e)}', 'expected_features': FEATURE_ORDER}), 400
-elif isinstance(data, list):
-if len(data) != len(FEATURE_ORDER):
-return jsonify({'error': f'Expected list of length {len(FEATURE_ORDER)}'}), 400
-row = data
-else:
-return jsonify({'error': 'JSON must be an object (named features) or list (ordered features)'}), 400
-
-
-# Build dataframe with correct column names (to be safe)
-X = pd.DataFrame([row], columns=FEATURE_ORDER)
-
-
-# Convert types (attempt)
-X = X.apply(pd.to_numeric, errors='coerce')
-
-
-if X.isnull().any(axis=None):
-return jsonify({'error': 'One or more feature values are missing or not numeric', 'row': X.to_dict(orient='records')[0]}), 400
-
-
-# Predict probability
-try:
-if hasattr(model, 'predict_proba'):
-prob = model.predict_proba(X)[:, 1][0]
-else:
-# fallback: use predict (0/1) — we will return 0% or 100% which is less ideal
-pred = model.predict(X)[0]
-prob = float(pred)
-except Exception as e:
-return jsonify({'error': f'Model prediction error: {str(e)}'}), 500
-
-
-# Return as percent
-return jsonify({
-'probability': float(prob),
-'probability_percent': float(prob) * 100.0,
-'features_used': FEATURE_ORDER
-})
-
-
-
-
-if __name__ == '__main__':
-app.run(host='0.0.0.0', port=5000, debug=True)
+    if X.isnull().any().any():
+        return jsonify({'error': 'Giá trị
