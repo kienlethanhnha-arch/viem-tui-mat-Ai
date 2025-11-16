@@ -4,6 +4,7 @@ import joblib
 import numpy as np
 from flask import Flask, request, jsonify
 from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string
 import pandas as pd
 import pickle
 import os
@@ -83,4 +84,17 @@ def predict():
     X = pd.DataFrame([row], columns=FEATURE_ORDER).apply(pd.to_numeric, errors='coerce')
 
     if X.isnull().any().any():
-        return jsonify({'error': 'Giá trị
+        return jsonify({'error': 'Giá trị không hợp lệ'}), 400
+
+    if hasattr(model, 'predict_proba'):
+        p = model.predict_proba(X)[:, 1][0]
+    else:
+        p = float(model.predict(X)[0])
+
+    return jsonify({
+        'probability': float(p),
+        'probability_percent': float(p)*100
+    })
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
