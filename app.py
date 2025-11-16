@@ -2,95 +2,103 @@ import streamlit as st
 import pandas as pd
 import joblib
 import numpy as np
-import pandas as pd
-import pickle
-import os
 
-MODEL_PATH = '/mnt/data/mo_hinh_du_doan_hoai_tu.pkl'
+# 1. CẤU HÌNH TRANG WEB
+st.set_page_config(
+    page_title="Dự báo Hoại tử Túi mật",
+    page_icon="🏥",
+    layout="centered"
+)
 
-FEATURE_ORDER = [
-    'wbc','crp','wall_thickened_1.0','wall_thickened_0.0','age','nlr',
-    'alt','systolic_bp','bilirubin_total','neutrophil_pct'
-]
+# 2. TẢI MÔ HÌNH ĐÃ LƯU
+@st.cache_resource
+def load_model():
+    return joblib.load('mo_hinh_du_doan_hoai_tu.pkl')
 
-# Load model
-model = None
-if os.path.exists(MODEL_PATH):
-    with open(MODEL_PATH, 'rb') as f:
-        model = pickle.load(f)
-else:
-    print("⚠️ MODEL_PATH không tồn tại:", MODEL_PATH)
+try:
+    model = load_model()
+except:
+    st.error("⚠️ Không tìm thấy file mô hình. Hãy đảm bảo bạn đã upload file .pkl cùng thư mục!")
+    st.stop()
 
-# HTML form
-HTML_PAGE = """
-<!doctype html>
-<html lang='vi'>
-<head>
-<meta charset='utf-8'/>
-<title>Dự đoán hoại tử túi mật</title>
-<style>
-body{font-family:Arial;max-width:600px;margin:40px auto}
-input{width:100%;padding:8px;margin-top:6px}
-button{padding:10px;margin-top:15px}
-#out{margin-top:20px;padding:10px;background:#eee;display:none}
-</style>
-</head>
-<body>
-<h2>Tính tỉ lệ hoại tử túi mật</h2>
-<form id='frm'>
-{% for f in fields %}
-<label>{{loop.index}}. {{f}}</label>
-<input name='{{f}}' required type='number' step='any'/>
-{% endfor %}
-<button type='submit'>Predict</button>
-</form>
-<div id='out'></div>
-<script>
-const frm=document.getElementById('frm');
-const out=document.getElementById('out');
-frm.addEventListener('submit',async e=>{
- e.preventDefault(); out.style.display='block'; out.innerHTML='Đang tính...';
- let data={};
- [...new FormData(frm).entries()].forEach(([k,v])=>data[k]=Number(v));
- let r=await fetch('/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
- r=await r.json();
- if(r.error){out.innerHTML='Lỗi: '+r.error;return;}
- out.innerHTML=`<b>Kết quả:</b> ${r.probability_percent.toFixed(2)}%`;
-});
-</script>
-</body>
-</html>
-"""
+# 3. GIAO DIỆN NHẬP LIỆU
+st.title("🏥 Dự báo Hoại tử Túi mật (AI)")
+st.markdown("---")
+st.info("Công cụ hỗ trợ bác sĩ lâm sàng dự đoán nguy cơ hoại tử túi mật trước mổ.")
 
-@app.route('/')
-def index():
-    return render_template_string(HTML_PAGE, fields=FEATURE_ORDER)
+# Chia cột để giao diện đẹp hơn
+col1, col2 = st.columns(2)
 
-@app.route('/predict', methods=['POST'])
-def predict():
-    if model is None:
-        return jsonify({'error': 'Model không tải được'}), 500
+with col1:
+    st.header("1. Thông tin chung")
+    age = st.number_input("Tuổi", min_value=1, max_value=100, value=50)
+    sex = st.selectbox("Giới tính", options=[1, 0], format_func=lambda x: "Nam" if x == 1 else "Nữ")
+    bmi = st.number_input("BMI", value=22.0)
+    dm = st.selectbox("Đái tháo đường", options=[0, 1], format_func=lambda x: "Không" if x == 0 else "Có")
+    hta = st.selectbox("Tăng huyết áp", options=[0, 1], format_func=lambda x: "Không" if x == 0 else "Có")
 
-    data = request.get_json()
+with col2:
+    st.header("2. Lâm sàng & XN")
+    fever = st.selectbox("Sốt (>38 độ)", options=[0, 1], format_func=lambda x: "Không" if x == 0 else "Có")
+    wbc = st.number_input("Bạch cầu (WBC - G/L)", value=10.0)
+    crp = st.number_input("CRP (mg/L)", value=5.0)
+    onset_hours = st.number_input("Thời gian đau (giờ)", value=24)
+
+st.markdown("---")
+st.header("3. Chẩn đoán hình ảnh (SA/CT)")
+
+col3, col4 = st.columns(2)
+with col3:
+    wall_thickened = st.selectbox("Dày thành túi mật (SA)", options=[0, 1], format_func=lambda x: "Không" if x == 0 else "Có")
+    pericholecystic_fluid = st.selectbox("Dịch quanh túi mật (SA)", options=[0, 1], format_func=lambda x: "Không" if x == 0 else "Có")
+    impacted_stone = st.selectbox("Sỏi kẹt cổ (SA)", options=[0, 1], format_func=lambda x: "Không" if x == 0 else "Có")
+
+with col4:
+    ct_wall_thickened = st.selectbox("Dày thành (CT Scan)", options=[-1, 0, 1],
+                                     format_func=lambda x: "Không chụp CT" if x == -1 else ("Có" if x == 1 else "Không"))
+    # Nếu không chụp CT thì gán giá trị NaN hoặc Missing tùy theo cách bạn train model
+    # Ở đây tôi để -1 và giả định pipeline của bạn có bước xử lý (như code mẫu trước tôi gửi đã có SimpleImputer fill -1)
+
+# 4. XỬ LÝ DỮ LIỆU ĐẦU VÀO
+# Lưu ý: Tên cột phải KHỚP CHÍNH XÁC với lúc huấn luyện
+input_data = pd.DataFrame({
+    'age': [age], 'sex': [sex], 'bmi': [bmi],
+    'dm': [dm], 'hta': [hta], 'heart_disease': [0], 'chronic_kidney': [0], # Gán mặc định nếu không nhập
+    'fever': [fever], 'murphy_clinical': [0], # Gán mặc định
+    'onset_hours': [onset_hours],
+    'heart_rate': [90], 'systolic_bp': [120], 'diastolic_bp': [70], # Gán trung bình
+    'wbc': [wbc], 'neutrophil_pct': [70], 'lymphocyte_pct': [20], 'nlr': [3.5],
+    'crp': [crp], 'ast': [30], 'alt': [30], 'bilirubin_total': [10], 'creatinine': [80],
+    'wall_thickened': [wall_thickened], 'pericholecystic_fluid': [pericholecystic_fluid],
+    'impacted_stone': [impacted_stone],
+    'gallbladder_distended': [0], 'gas_in_wall': [0], 'murphy_ultrasound': [1],
+    'ct_wall_thickened': [np.nan if ct_wall_thickened == -1 else ct_wall_thickened],
+    'ct_pericholecystic_fluid': [np.nan] # Giả sử thiếu
+})
+
+# 5. DỰ BÁO
+if st.button("🔍 PHÂN TÍCH NGAY", use_container_width=True):
     try:
-        row = [data[f] for f in FEATURE_ORDER]
-    except:
-        return jsonify({'error': 'Thiếu hoặc sai tên tham số'}), 400
+        # Dự báo xác suất
+        prob = model.predict_proba(input_data)[0][1]
+        percent = prob * 100
 
-    X = pd.DataFrame([row], columns=FEATURE_ORDER).apply(pd.to_numeric, errors='coerce')
+        st.markdown("### KẾT QUẢ PHÂN TÍCH:")
 
-    if X.isnull().any().any():
-        return jsonify({'error': 'Giá trị không hợp lệ'}), 400
+        # Thanh hiển thị mức độ nguy cơ
+        st.progress(int(percent))
 
-    if hasattr(model, 'predict_proba'):
-        p = model.predict_proba(X)[:, 1][0]
-    else:
-        p = float(model.predict(X)[0])
+        if percent < 30:
+            st.success(f"✅ NGUY CƠ THẤP: {percent:.1f}% - Có thể mổ nội soi chương trình/trì hoãn.")
+        elif percent < 70:
+            st.warning(f"⚠️ NGUY CƠ TRUNG BÌNH: {percent:.1f}% - Cẩn trọng, chuẩn bị khả năng mổ khó.")
+        else:
+            st.error(f"🚨 NGUY CƠ CAO HOẠI TỬ: {percent:.1f}% - Cần mổ sớm, chuẩn bị chuyển mổ mở.")
 
-    return jsonify({
-        'probability': float(p),
-        'probability_percent': float(p)*100
-    })
+    except Exception as e:
+        st.error(f"Có lỗi xảy ra: {e}")
+        st.info("Hãy kiểm tra lại số lượng biến đầu vào có khớp với mô hình không.")
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+# Disclaimer
+st.markdown("-----------")
+st.caption("Lưu ý: Kết quả chỉ mang tính chất tham khảo hỗ trợ nghiên cứu. Quyết định cuối cùng thuộc về bác sĩ lâm s
